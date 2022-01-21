@@ -10,12 +10,18 @@
   "private": true,
   "dependencies": {
     "@nrwl/next": "13.4.6",
+    "@reactivex/rxjs": "^6.6.7",
+    "@reduxjs/toolkit": "^1.7.1",
     "core-js": "^3.6.5",
     "next": "12.0.7",
     "react": "17.0.2",
     "react-dom": "17.0.2",
+    "redux-observable": "^2.0.0",
     "regenerator-runtime": "0.13.7",
-    "tslib": "^2.0.0"
+    "rxjs": "^7.5.2",
+    "tslib": "^2.0.0",
+    "web3": "^1.7.0",
+    "web3-react": "^5.0.5"
   },
   "devDependencies": {
     "@nrwl/cli": "13.4.6",
@@ -51,5 +57,7 @@
     "sass": "1.43.2",
     "ts-jest": "27.0.5",
     "typescript": "~4.4.3"
-  }
+  },
+  "main": "index.js",
+  "author": "Kliko Atanasov <kliko.atanasov@gmail.com>"
 }
