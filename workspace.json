@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "projects": {
+    "web3-monorepo-test-app": "apps/web3-monorepo-test-app",
+    "web3-monorepo-test-app-e2e": "apps/web3-monorepo-test-app-e2e"
+  }
+}

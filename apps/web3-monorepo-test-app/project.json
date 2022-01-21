@@ -1,0 +1,54 @@
+{
+  "root": "apps/web3-monorepo-test-app",
+  "sourceRoot": "apps/web3-monorepo-test-app",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/next:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "root": "apps/web3-monorepo-test-app",
+        "outputPath": "dist/apps/web3-monorepo-test-app"
+      },
+      "configurations": {
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nrwl/next:server",
+      "options": {
+        "buildTarget": "web3-monorepo-test-app:build",
+        "dev": true
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "web3-monorepo-test-app:build:production",
+          "dev": false
+        }
+      }
+    },
+    "export": {
+      "executor": "@nrwl/next:export",
+      "options": {
+        "buildTarget": "web3-monorepo-test-app:build:production"
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/apps/web3-monorepo-test-app"],
+      "options": {
+        "jestConfig": "apps/web3-monorepo-test-app/jest.config.js",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/web3-monorepo-test-app/**/*.{ts,tsx,js,jsx}"]
+      }
+    }
+  },
+  "tags": []
+}
