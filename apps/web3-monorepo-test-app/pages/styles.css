@@ -170,16 +170,21 @@ pre {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
   width: 100%;
+  position: relative;
+  padding-left: 3rem;
+  overflow: hidden;
 }
 .list-item-link svg:first-child {
   margin-right: 1rem;
-  height: 1.5rem;
+  height: 2.5rem;
   transition-property: background-color, border-color, color, fill, stroke,
     opacity, box-shadow, transform, filter, backdrop-filter,
     -webkit-backdrop-filter;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  width: 1.5rem;
+  width: 2.5rem;
+  position: absolute;
+  left: 0.25rem
 }
 .list-item-link > span {
   flex-grow: 1;
@@ -213,14 +218,6 @@ pre {
 .list-item-link:hover {
   /*color: rgba(255, 255, 255, 1);*/
   /*background-color: hsla(162, 47%, 50%, 1);*/
-}
-.list-item-link:hover > span {
-}
-.list-item-link:hover > span > span {
-  /*color: rgba(243, 244, 246, 1);*/
-}
-.list-item-link:hover svg:last-child {
-  /*transform: translateX(0.25rem);*/
 }
 #other-links {
 }
