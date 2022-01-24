@@ -6,7 +6,7 @@ function CustomApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
-        <title>Welcome to web3-monorepo-test-app!</title>
+        <title>Wallet Reader App</title>
       </Head>
       <main className="app">
         <Component {...pageProps} />
@@ -16,3 +16,5 @@ function CustomApp({ Component, pageProps }: AppProps) {
 }
 
 export default CustomApp;
+
+

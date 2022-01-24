@@ -211,16 +211,16 @@ pre {
   width: 1rem;
 }
 .list-item-link:hover {
-  color: rgba(255, 255, 255, 1);
-  background-color: hsla(162, 47%, 50%, 1);
+  /*color: rgba(255, 255, 255, 1);*/
+  /*background-color: hsla(162, 47%, 50%, 1);*/
 }
 .list-item-link:hover > span {
 }
 .list-item-link:hover > span > span {
-  color: rgba(243, 244, 246, 1);
+  /*color: rgba(243, 244, 246, 1);*/
 }
 .list-item-link:hover svg:last-child {
-  transform: translateX(0.25rem);
+  /*transform: translateX(0.25rem);*/
 }
 #other-links {
 }
