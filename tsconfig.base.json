@@ -14,7 +14,12 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@web3-monorepo-test-app/data-api/metamask": [
+        "libs/data-api/metamask/src/index.ts"
+      ],
+      "@web3-monorepo-test-app/data-store": ["libs/data-store/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

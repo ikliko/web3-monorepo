@@ -1,6 +1,8 @@
 {
   "version": 2,
   "projects": {
+    "data-api-metamask": "libs/data-api/metamask",
+    "data-store": "libs/data-store",
     "web3-monorepo-test-app": "apps/web3-monorepo-test-app",
     "web3-monorepo-test-app-e2e": "apps/web3-monorepo-test-app-e2e"
   }

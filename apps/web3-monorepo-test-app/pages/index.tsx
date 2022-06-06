@@ -3,6 +3,16 @@ import {useEffect, useState} from "react";
 import {switchMap} from "rxjs/operators";
 import {combineLatest, EMPTY, from, map, Observable, of} from "rxjs";
 
+import store from './store'
+import {Provider} from 'react-redux'
+import {
+  connectWallet,
+  getCurrentChain,
+  getWalletAddresses,
+  getWalletAvailableProviders,
+  getWalletBalance
+} from "@web3-monorepo-test-app/data-api/metamask";
+
 interface MetamaskData {
   isLoading: boolean;
   isInstalled: boolean;
@@ -48,59 +58,6 @@ interface ChainsData {
   currentChain: Chain;
 }
 
-function getChains(): Observable<Chain[]> {
-  return from<Chain[]>(fetch('https://chainid.network/chains.json')
-    .then(res => res.json()));
-}
-
-function getAccounts(): Observable<string> {
-  if (!window) {
-    return of<string>('');
-  }
-
-  const {ethereum} = window;
-
-  if (!ethereum) {
-    return of<string>('');
-  }
-
-  return from<string>(ethereum.request({
-    method: 'eth_accounts'
-  }));
-}
-
-function getAccountBalance(account): Observable<number | any> {
-  if (!window) {
-    // type unknown
-    return of<any>(null);
-  }
-
-  const {ethereum} = window;
-
-  return from<number | any>(ethereum.request({
-    method: 'eth_getBalance',
-    params: [
-      account,
-      'latest'
-    ]
-  })).pipe(map(balance => {
-    return parseBalance(balance);
-  }));
-}
-
-function getCurrentChainId(): Observable<any> {
-  if (!window) {
-    return of(null);
-  }
-
-  const {ethereum} = window;
-
-  if (!ethereum) {
-    return of(null);
-  }
-
-  return from(ethereum.request({method: 'eth_chainId'}));
-}
 
 function useChainState() {
   const [chainsData, setChainsData] = useState<ChainsData>({
@@ -109,23 +66,12 @@ function useChainState() {
   });
 
   useEffect(() => {
-
-
-    combineLatest([
-      getCurrentChainId(),
-      getChains()
-    ])
-      .subscribe(data => {
-        const chainId: number = data[0];
-        const chains: Chain[] = data[1];
-        const currentChain: Chain = chains.find((chain: Chain) => chain.chainId === +chainId);
-
-        setChainsData({
-          ...chainsData,
-          chains,
-          currentChain,
-        })
-      })
+    getCurrentChain().subscribe(currentChain => {
+      setChainsData({
+        ...chainsData,
+        currentChain,
+      });
+    });
   }, []);
 
   return chainsData;
@@ -140,7 +86,7 @@ function useAccountState() {
   useEffect(() => {
     const {ethereum} = window;
 
-    getAccounts()
+    getWalletAddresses()
       .pipe(
         switchMap((accounts) => {
           if (!accounts.length) {
@@ -149,7 +95,7 @@ function useAccountState() {
 
           return combineLatest([
             of(accounts),
-            getAccountBalance(accounts[0]),
+            getWalletBalance(accounts[0]),
           ])
         })
       )
@@ -225,23 +171,29 @@ function useMetamaskState() {
       })
     });
 
-    ethereum
-      .request({method: 'eth_accounts'})
-      .then(accounts => {
+
+    combineLatest([
+      getWalletAddresses(),
+      getWalletAvailableProviders()
+    ])
+      .subscribe(data => {
+        const addresses: string[] = data[0];
+        const providers = data[1];
+
         setMetamaskData({
           ...metamaskData,
           isLoading: false,
-          isInstalled: !!ethereum,
-          isAuthenticated: !!accounts.length,
-          provider: ethereum
+          isInstalled: !!providers.metamask,
+          isAuthenticated: !!addresses.length,
+          provider: providers.metamask
         })
       })
-      .catch((err) => {
-        // Some unexpected error.
-        // For backwards compatibility reasons, if no accounts are available,
-        // eth_accounts will return an empty array.
-        console.warn(err);
-      });
+    // .catch((err) => {
+    //   // Some unexpected error.
+    //   // For backwards compatibility reasons, if no accounts are available,
+    //   // eth_accounts will return an empty array.
+    //   console.warn(err);
+    // });
   }, []);
 
   return metamaskData;
@@ -287,12 +239,6 @@ function renderNoMetamask() {
 }
 
 function renderLoginScreen() {
-  const connectWallet = () => {
-    window.ethereum.request({method: 'eth_requestAccounts'})
-      .catch(e => console.log(e))
-      .then(data => {
-      });
-  };
 
   return (
     <div>
@@ -370,7 +316,9 @@ function getAssets() {
               <g id="-Round-/-Editor-/-attach_money" transform="translate(714.000000, 54.000000)">
                 <g transform="translate(0.000000, 0.000000)">
                   <polygon id="Path" points="0 0 24 0 24 24 0 24"/>
-                  <path d="M11.8,10.9 C9.53,10.31 8.8,9.7 8.8,8.75 C8.8,7.66 9.81,6.9 11.5,6.9 C12.92,6.9 13.63,7.44 13.89,8.3 C14.01,8.7 14.34,9 14.76,9 L15.06,9 C15.72,9 16.19,8.35 15.96,7.73 C15.54,6.55 14.56,5.57 13,5.19 L13,4.5 C13,3.67 12.33,3 11.5,3 C10.67,3 10,3.67 10,4.5 L10,5.16 C8.06,5.58 6.5,6.84 6.5,8.77 C6.5,11.08 8.41,12.23 11.2,12.9 C13.7,13.5 14.2,14.38 14.2,15.31 C14.2,16 13.71,17.1 11.5,17.1 C9.85,17.1 9,16.51 8.67,15.67 C8.52,15.28 8.18,15 7.77,15 L7.49,15 C6.82,15 6.35,15.68 6.6,16.3 C7.17,17.69 8.5,18.51 10,18.83 L10,19.5 C10,20.33 10.67,21 11.5,21 C12.33,21 13,20.33 13,19.5 L13,18.85 C14.95,18.48 16.5,17.35 16.5,15.3 C16.5,12.46 14.07,11.49 11.8,10.9 Z" id="🔹-Icon-Color" fill="#1D1D1D"/>
+                  <path
+                    d="M11.8,10.9 C9.53,10.31 8.8,9.7 8.8,8.75 C8.8,7.66 9.81,6.9 11.5,6.9 C12.92,6.9 13.63,7.44 13.89,8.3 C14.01,8.7 14.34,9 14.76,9 L15.06,9 C15.72,9 16.19,8.35 15.96,7.73 C15.54,6.55 14.56,5.57 13,5.19 L13,4.5 C13,3.67 12.33,3 11.5,3 C10.67,3 10,3.67 10,4.5 L10,5.16 C8.06,5.58 6.5,6.84 6.5,8.77 C6.5,11.08 8.41,12.23 11.2,12.9 C13.7,13.5 14.2,14.38 14.2,15.31 C14.2,16 13.71,17.1 11.5,17.1 C9.85,17.1 9,16.51 8.67,15.67 C8.52,15.28 8.18,15 7.77,15 L7.49,15 C6.82,15 6.35,15.68 6.6,16.3 C7.17,17.69 8.5,18.51 10,18.83 L10,19.5 C10,20.33 10.67,21 11.5,21 C12.33,21 13,20.33 13,19.5 L13,18.85 C14.95,18.48 16.5,17.35 16.5,15.3 C16.5,12.46 14.07,11.49 11.8,10.9 Z"
+                    id="🔹-Icon-Color" fill="#1D1D1D"/>
                 </g>
               </g>
             </g>
@@ -399,30 +347,32 @@ function getAssets() {
            version="1.1"
            id="Layer_1"
            viewBox="0 0 64 64">
-      <path d="M61,11h-3V8c0-1.7-1.3-3-3-3H45c-1.7,0-3,1.3-3,3v3h-2V8c0-1.7-1.3-3-3-3H27c-1.7,0-3,1.3-3,3v3h-2V8c0-1.7-1.3-3-3-3H9  C7.3,5,6,6.3,6,8v3H3c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h3v3c0,1.7,1.3,3,3,3h10c1.7,0,3-1.3,3-3v-3h2v3c0,1.7,1.3,3,3,3h2v6h-5  c-1.7,0-3,1.3-3,3v15c0,1.7,1.3,3,3,3h16c1.7,0,3-1.3,3-3V32c0-1.7-1.3-3-3-3h-5v-6h2c1.7,0,3-1.3,3-3v-3h2v3c0,1.7,1.3,3,3,3h10  c1.7,0,3-1.3,3-3v-3h3c0.6,0,1-0.4,1-1v-4C62,11.4,61.6,11,61,11z M44,8c0-0.6,0.4-1,1-1h10c0.6,0,1,0.4,1,1v3h-2v-1  c0-0.6-0.4-1-1-1h-6c-0.6,0-1,0.4-1,1v1h-2V8z M52,17h-4c0.6,0,1-0.4,1-1v-4c0-0.6-0.4-1-1-1h4c-0.6,0-1,0.4-1,1v4  C51,16.6,51.4,17,52,17z M39,15h-4v-2h4h4h4v2h-4H39z M21,15h-4v-2h4h4h4v2h-4H21z M12,11h4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h-4  c0.6,0,1-0.4,1-1v-4C13,11.4,12.6,11,12,11z M30,11h4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h-4c0.6,0,1-0.4,1-1v-4  C31,11.4,30.6,11,30,11z M26,8c0-0.6,0.4-1,1-1h10c0.6,0,1,0.4,1,1v3h-2v-1c0-0.6-0.4-1-1-1h-6c-0.6,0-1,0.4-1,1v1h-2V8z M8,8  c0-0.6,0.4-1,1-1h10c0.6,0,1,0.4,1,1v3h-2v-1c0-0.6-0.4-1-1-1h-6c-0.6,0-1,0.4-1,1v1H8V8z M4,13h3h4v2H7H4V13z M20,20  c0,0.6-0.4,1-1,1H9c-0.6,0-1-0.4-1-1v-3h2v1c0,0.6,0.4,1,1,1h6c0.6,0,1-0.4,1-1v-1h2V20z M41,32v15c0,0.6-0.4,1-1,1H24  c-0.6,0-1-0.4-1-1V32c0-0.6,0.4-1,1-1h16C40.6,31,41,31.4,41,32z M33,29h-2v-6h2V29z M38,20c0,0.6-0.4,1-1,1H27c-0.6,0-1-0.4-1-1v-3  h2v1c0,0.6,0.4,1,1,1h6c0.6,0,1-0.4,1-1v-1h2V20z M56,20c0,0.6-0.4,1-1,1H45c-0.6,0-1-0.4-1-1v-3h2v1c0,0.6,0.4,1,1,1h6  c0.6,0,1-0.4,1-1v-1h2V20z M60,15h-3h-4v-2h4h3V15z"/>
-      <path d="M29,45c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-5.4c0.6-0.7,1-1.7,1-2.6c0-2.2-1.8-4-4-4s-4,1.8-4,4c0,1,0.4,1.9,1,2.6V45z   M32,35c1.1,0,2,0.9,2,2c0,0.6-0.2,1.1-0.7,1.5c-0.2,0.2-0.3,0.5-0.3,0.7V44h-2v-4.8c0-0.3-0.1-0.6-0.3-0.7C30.2,38.1,30,37.6,30,37  C30,35.9,30.9,35,32,35z"/>
-      <path d="M20.9,56.8c0.6,0.4,1.2,0.7,1.9,1l0.9-1.8c-0.6-0.3-1.1-0.6-1.7-0.9L20.9,56.8z"/>
-      <path d="M16.4,49.8l-1.6,1.1c0.4,0.6,0.8,1.2,1.3,1.7l1.5-1.3C17.1,50.8,16.7,50.3,16.4,49.8z"/>
-      <path d="M14.5,46.4l-1.8,0.8c0.3,0.7,0.6,1.3,0.9,1.9l1.8-1C15,47.6,14.7,47,14.5,46.4z"/>
-      <path d="M24.7,58.7c0.7,0.2,1.4,0.5,2,0.6l0.5-1.9c-0.6-0.2-1.2-0.4-1.8-0.6L24.7,58.7z"/>
-      <path d="M46.5,51.3l1.5,1.3c0.5-0.5,0.9-1.1,1.3-1.7l-1.6-1.1C47.3,50.3,46.9,50.8,46.5,51.3z"/>
-      <path d="M17.5,54.2c0.5,0.5,1.1,1,1.6,1.4l1.2-1.6c-0.5-0.4-1-0.8-1.5-1.3L17.5,54.2z"/>
-      <path d="M40.4,56l0.9,1.8c0.6-0.3,1.3-0.7,1.9-1l-1.1-1.7C41.6,55.4,41,55.7,40.4,56z"/>
-      <path d="M36.8,57.4l0.5,1.9c0.7-0.2,1.4-0.4,2-0.6l-0.7-1.9C38.1,57,37.4,57.2,36.8,57.4z"/>
-      <path d="M51,38.8l0,0.2c0,0.6,0,1.2-0.1,1.7l2,0.2C53,40.3,53,39.6,53,39l0-0.2L51,38.8z"/>
-      <path d="M52.9,36.6c-0.1-0.7-0.2-1.4-0.3-2.1l-2,0.4c0.1,0.6,0.2,1.3,0.3,1.9L52.9,36.6z"/>
-      <path d="M50.2,44.5l1.9,0.6c0.2-0.7,0.4-1.4,0.5-2.1l-2-0.4C50.5,43.3,50.4,43.9,50.2,44.5z"/>
-      <path d="M48.7,48.1l1.8,1c0.3-0.6,0.7-1.3,0.9-1.9l-1.8-0.8C49.3,46.9,49,47.5,48.7,48.1z"/>
-      <path d="M28.8,59.8c0.7,0.1,1.4,0.2,2.1,0.2l0.1-2c-0.6,0-1.3-0.1-1.9-0.2L28.8,59.8z"/>
-      <path d="M33,58l0.1,2c0.7,0,1.4-0.1,2.1-0.2l-0.3-2C34.3,57.9,33.6,57.9,33,58z"/>
-      <path d="M47.4,27.9c0.4,0.5,0.7,1.1,1.1,1.6l1.7-1c-0.4-0.6-0.7-1.2-1.2-1.8L47.4,27.9z"/>
-      <path d="M13,39l0-0.2l-2,0l0,0.2c0,0.7,0,1.3,0.1,2l2-0.2C13,40.2,13,39.6,13,39z"/>
-      <path d="M49.4,31.3c0.3,0.6,0.5,1.2,0.7,1.8l1.9-0.6c-0.2-0.7-0.5-1.3-0.8-2L49.4,31.3z"/>
-      <path d="M12,32.5l1.9,0.6c0.2-0.6,0.4-1.2,0.7-1.8l-1.8-0.8C12.5,31.1,12.2,31.8,12,32.5z"/>
-      <path d="M16.5,28l-1.6-1.2c-0.4,0.6-0.8,1.2-1.2,1.8l1.7,1C15.8,29,16.2,28.5,16.5,28z"/>
-      <path d="M13.4,42.7l-2,0.4c0.1,0.7,0.3,1.4,0.5,2.1l1.9-0.6C13.6,44,13.5,43.3,13.4,42.7z"/>
-      <path d="M43.7,54l1.2,1.6c0.6-0.4,1.1-0.9,1.6-1.4l-1.4-1.4C44.7,53.1,44.2,53.6,43.7,54z"/>
-      <path d="M11.1,36.7l2,0.2c0.1-0.6,0.2-1.3,0.3-1.9l-2-0.4C11.3,35.3,11.2,36,11.1,36.7z"/>
+        <path
+          d="M61,11h-3V8c0-1.7-1.3-3-3-3H45c-1.7,0-3,1.3-3,3v3h-2V8c0-1.7-1.3-3-3-3H27c-1.7,0-3,1.3-3,3v3h-2V8c0-1.7-1.3-3-3-3H9  C7.3,5,6,6.3,6,8v3H3c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h3v3c0,1.7,1.3,3,3,3h10c1.7,0,3-1.3,3-3v-3h2v3c0,1.7,1.3,3,3,3h2v6h-5  c-1.7,0-3,1.3-3,3v15c0,1.7,1.3,3,3,3h16c1.7,0,3-1.3,3-3V32c0-1.7-1.3-3-3-3h-5v-6h2c1.7,0,3-1.3,3-3v-3h2v3c0,1.7,1.3,3,3,3h10  c1.7,0,3-1.3,3-3v-3h3c0.6,0,1-0.4,1-1v-4C62,11.4,61.6,11,61,11z M44,8c0-0.6,0.4-1,1-1h10c0.6,0,1,0.4,1,1v3h-2v-1  c0-0.6-0.4-1-1-1h-6c-0.6,0-1,0.4-1,1v1h-2V8z M52,17h-4c0.6,0,1-0.4,1-1v-4c0-0.6-0.4-1-1-1h4c-0.6,0-1,0.4-1,1v4  C51,16.6,51.4,17,52,17z M39,15h-4v-2h4h4h4v2h-4H39z M21,15h-4v-2h4h4h4v2h-4H21z M12,11h4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h-4  c0.6,0,1-0.4,1-1v-4C13,11.4,12.6,11,12,11z M30,11h4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h-4c0.6,0,1-0.4,1-1v-4  C31,11.4,30.6,11,30,11z M26,8c0-0.6,0.4-1,1-1h10c0.6,0,1,0.4,1,1v3h-2v-1c0-0.6-0.4-1-1-1h-6c-0.6,0-1,0.4-1,1v1h-2V8z M8,8  c0-0.6,0.4-1,1-1h10c0.6,0,1,0.4,1,1v3h-2v-1c0-0.6-0.4-1-1-1h-6c-0.6,0-1,0.4-1,1v1H8V8z M4,13h3h4v2H7H4V13z M20,20  c0,0.6-0.4,1-1,1H9c-0.6,0-1-0.4-1-1v-3h2v1c0,0.6,0.4,1,1,1h6c0.6,0,1-0.4,1-1v-1h2V20z M41,32v15c0,0.6-0.4,1-1,1H24  c-0.6,0-1-0.4-1-1V32c0-0.6,0.4-1,1-1h16C40.6,31,41,31.4,41,32z M33,29h-2v-6h2V29z M38,20c0,0.6-0.4,1-1,1H27c-0.6,0-1-0.4-1-1v-3  h2v1c0,0.6,0.4,1,1,1h6c0.6,0,1-0.4,1-1v-1h2V20z M56,20c0,0.6-0.4,1-1,1H45c-0.6,0-1-0.4-1-1v-3h2v1c0,0.6,0.4,1,1,1h6  c0.6,0,1-0.4,1-1v-1h2V20z M60,15h-3h-4v-2h4h3V15z"/>
+        <path
+          d="M29,45c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-5.4c0.6-0.7,1-1.7,1-2.6c0-2.2-1.8-4-4-4s-4,1.8-4,4c0,1,0.4,1.9,1,2.6V45z   M32,35c1.1,0,2,0.9,2,2c0,0.6-0.2,1.1-0.7,1.5c-0.2,0.2-0.3,0.5-0.3,0.7V44h-2v-4.8c0-0.3-0.1-0.6-0.3-0.7C30.2,38.1,30,37.6,30,37  C30,35.9,30.9,35,32,35z"/>
+        <path d="M20.9,56.8c0.6,0.4,1.2,0.7,1.9,1l0.9-1.8c-0.6-0.3-1.1-0.6-1.7-0.9L20.9,56.8z"/>
+        <path d="M16.4,49.8l-1.6,1.1c0.4,0.6,0.8,1.2,1.3,1.7l1.5-1.3C17.1,50.8,16.7,50.3,16.4,49.8z"/>
+        <path d="M14.5,46.4l-1.8,0.8c0.3,0.7,0.6,1.3,0.9,1.9l1.8-1C15,47.6,14.7,47,14.5,46.4z"/>
+        <path d="M24.7,58.7c0.7,0.2,1.4,0.5,2,0.6l0.5-1.9c-0.6-0.2-1.2-0.4-1.8-0.6L24.7,58.7z"/>
+        <path d="M46.5,51.3l1.5,1.3c0.5-0.5,0.9-1.1,1.3-1.7l-1.6-1.1C47.3,50.3,46.9,50.8,46.5,51.3z"/>
+        <path d="M17.5,54.2c0.5,0.5,1.1,1,1.6,1.4l1.2-1.6c-0.5-0.4-1-0.8-1.5-1.3L17.5,54.2z"/>
+        <path d="M40.4,56l0.9,1.8c0.6-0.3,1.3-0.7,1.9-1l-1.1-1.7C41.6,55.4,41,55.7,40.4,56z"/>
+        <path d="M36.8,57.4l0.5,1.9c0.7-0.2,1.4-0.4,2-0.6l-0.7-1.9C38.1,57,37.4,57.2,36.8,57.4z"/>
+        <path d="M51,38.8l0,0.2c0,0.6,0,1.2-0.1,1.7l2,0.2C53,40.3,53,39.6,53,39l0-0.2L51,38.8z"/>
+        <path d="M52.9,36.6c-0.1-0.7-0.2-1.4-0.3-2.1l-2,0.4c0.1,0.6,0.2,1.3,0.3,1.9L52.9,36.6z"/>
+        <path d="M50.2,44.5l1.9,0.6c0.2-0.7,0.4-1.4,0.5-2.1l-2-0.4C50.5,43.3,50.4,43.9,50.2,44.5z"/>
+        <path d="M48.7,48.1l1.8,1c0.3-0.6,0.7-1.3,0.9-1.9l-1.8-0.8C49.3,46.9,49,47.5,48.7,48.1z"/>
+        <path d="M28.8,59.8c0.7,0.1,1.4,0.2,2.1,0.2l0.1-2c-0.6,0-1.3-0.1-1.9-0.2L28.8,59.8z"/>
+        <path d="M33,58l0.1,2c0.7,0,1.4-0.1,2.1-0.2l-0.3-2C34.3,57.9,33.6,57.9,33,58z"/>
+        <path d="M47.4,27.9c0.4,0.5,0.7,1.1,1.1,1.6l1.7-1c-0.4-0.6-0.7-1.2-1.2-1.8L47.4,27.9z"/>
+        <path d="M13,39l0-0.2l-2,0l0,0.2c0,0.7,0,1.3,0.1,2l2-0.2C13,40.2,13,39.6,13,39z"/>
+        <path d="M49.4,31.3c0.3,0.6,0.5,1.2,0.7,1.8l1.9-0.6c-0.2-0.7-0.5-1.3-0.8-2L49.4,31.3z"/>
+        <path d="M12,32.5l1.9,0.6c0.2-0.6,0.4-1.2,0.7-1.8l-1.8-0.8C12.5,31.1,12.2,31.8,12,32.5z"/>
+        <path d="M16.5,28l-1.6-1.2c-0.4,0.6-0.8,1.2-1.2,1.8l1.7,1C15.8,29,16.2,28.5,16.5,28z"/>
+        <path d="M13.4,42.7l-2,0.4c0.1,0.7,0.3,1.4,0.5,2.1l1.9-0.6C13.6,44,13.5,43.3,13.4,42.7z"/>
+        <path d="M43.7,54l1.2,1.6c0.6-0.4,1.1-0.9,1.6-1.4l-1.4-1.4C44.7,53.1,44.2,53.6,43.7,54z"/>
+        <path d="M11.1,36.7l2,0.2c0.1-0.6,0.2-1.3,0.3-1.9l-2-0.4C11.3,35.3,11.2,36,11.1,36.7z"/>
       </svg>
     )
   }
@@ -432,6 +382,14 @@ function renderWalletPage() {
   const metamaskData = useMetamaskState();
   const account = useAccountState();
   const chainsData = useChainState();
+
+  if (metamaskData.isLoading) {
+    return (
+      <h1>
+        Loading...
+      </h1>
+    );
+  }
 
   if (!metamaskData.isInstalled) {
     return renderNoMetamask();
@@ -443,7 +401,7 @@ function renderWalletPage() {
 
   const {currentChain} = chainsData;
 
-  const { dollar, chain, bank } = getAssets();
+  const {dollar, chain, bank} = getAssets();
 
   return (
     <div>
@@ -497,36 +455,38 @@ function renderWalletPage() {
 
 export function Index() {
   return (
-    <div className={styles.page}>
-      <div className="wrapper">
-        <div className="container">
-          <div id="welcome">
-            <h1>
-              Welcome to the Wallet Reader App
-            </h1>
+    <Provider store={store}>
+      <div className={styles.page}>
+        <div className="wrapper">
+          <div className="container">
+            <div id="welcome">
+              <h1>
+                Welcome to the Wallet Reader App
+              </h1>
+            </div>
+
+            {renderWalletPage()}
+
+            <p id="love">
+              Carefully crafted with
+              <svg
+                fill="currentColor"
+                stroke="none"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+            </p>
           </div>
-
-          {renderWalletPage()}
-
-          <p id="love">
-            Carefully crafted with
-            <svg
-              fill="currentColor"
-              stroke="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-          </p>
         </div>
       </div>
-    </div>
+    </Provider>
   );
 }
 
