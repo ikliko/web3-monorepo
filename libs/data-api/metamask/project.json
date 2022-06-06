@@ -1,0 +1,23 @@
+{
+  "root": "libs/data-api/metamask",
+  "sourceRoot": "libs/data-api/metamask/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/data-api/metamask/**/*.{ts,tsx,js,jsx}"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/libs/data-api/metamask"],
+      "options": {
+        "jestConfig": "libs/data-api/metamask/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  }
+}
